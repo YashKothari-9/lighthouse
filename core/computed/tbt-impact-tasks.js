@@ -62,6 +62,31 @@ class TBTImpactTasks {
   }
 
   /**
+   * @param {LH.Artifacts.TaskNode[]} tasks
+   * @param {Map<LH.Artifacts.TaskNode, number>} taskToImpact
+   */
+  static createImpactTasks(tasks, taskToImpact) {
+    /** @type {TBTImpactTask[]} */
+    const tbtImpactTasks = [];
+    for (const task of tasks) {
+      const tbtImpact = taskToImpact.get(task) || 0;
+      let selfTbtImpact = tbtImpact;
+
+      for (const child of task.children) {
+        const childTbtImpact = taskToImpact.get(child) || 0;
+        selfTbtImpact -= childTbtImpact;
+      }
+
+      tbtImpactTasks.push({
+        ...task,
+        tbtImpact,
+        selfTbtImpact,
+      });
+    }
+    return tbtImpactTasks;
+  }
+
+  /**
    * @param {LH.Artifacts.MetricComputationDataInput} metricComputationData
    * @param {LH.Artifacts.ComputedContext} context
    * @return {Promise<TBTImpactTask[]>}
@@ -153,24 +178,7 @@ class TBTImpactTasks {
       }
     }
 
-    /** @type {TBTImpactTask[]} */
-    const tbtImpactTasks = [];
-    for (const task of tasks) {
-      const tbtImpact = taskToImpact.get(task) || 0;
-      let selfTbtImpact = tbtImpact;
-
-      for (const child of task.children) {
-        const childTbtImpact = taskToImpact.get(child) || 0;
-        selfTbtImpact -= childTbtImpact;
-      }
-
-      tbtImpactTasks.push({
-        ...task,
-        tbtImpact,
-        selfTbtImpact,
-      });
-    }
-    return tbtImpactTasks;
+    return this.createImpactTasks(tasks, taskToImpact);
   }
 }
 
