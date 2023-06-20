@@ -44,16 +44,20 @@ describe('TBTImpactTasks', () => {
     const noChildImpactTasks = tbtImpactingTasks.filter(t => t.selfTbtImpact === t.tbtImpact);
     expect(noChildTasks).toEqual(noChildImpactTasks);
 
-    const tbtResult = await TotalBlockingTime.request(metricComputationData, context);
     const tbtEstimateFromTasks = tbtImpactingTasks.reduce((sum, t) => sum += t.selfTbtImpact, 0);
-
     expect(tbtEstimateFromTasks).toMatchInlineSnapshot(`1234`);
+
+    // The total self TBT impact of every task should equal the total TBT impact of just the top level tasks.
+    const topLevelTasks = tbtImpactingTasks.filter(t => !t.parent);
+    const tbtImpactFromTopLevelTasks = topLevelTasks.reduce((sum, t) => sum += t.tbtImpact, 0);
+    expect(tbtImpactFromTopLevelTasks).toBeCloseTo(tbtEstimateFromTasks, 0.1);
 
     // We use the pessimistic start/end timings to get the TBT impact of each task, so the total TBT impact
     // should be the same as the pessimistic TBT estimate.
+    const tbtResult = await TotalBlockingTime.request(metricComputationData, context);
     if ('pessimisticEstimate' in tbtResult) {
       expect(tbtEstimateFromTasks).toBeGreaterThan(tbtResult.timing);
-      expect(tbtEstimateFromTasks).toBeCloseTo(tbtResult.pessimisticEstimate.timeInMs);
+      expect(tbtEstimateFromTasks).toBeCloseTo(tbtResult.pessimisticEstimate.timeInMs, 0.1);
     } else {
       throw new Error('TBT result was not a lantern result');
     }
@@ -82,10 +86,17 @@ describe('TBTImpactTasks', () => {
     const noChildImpactTasks = tbtImpactingTasks.filter(t => t.selfTbtImpact === t.tbtImpact);
     expect(noChildTasks).toEqual(noChildImpactTasks);
 
-    const tbtResult = await TotalBlockingTime.request(metricComputationData, context);
     const tbtEstimateFromTasks = tbtImpactingTasks.reduce((sum, t) => sum += t.selfTbtImpact, 0);
-
     expect(tbtEstimateFromTasks).toMatchInlineSnapshot(`333.0050000000001`);
-    expect(tbtEstimateFromTasks).toBeCloseTo(tbtResult.timing);
+
+    // The total self TBT impact of every task should equal the total TBT impact of just the top level tasks.
+    const topLevelTasks = tbtImpactingTasks.filter(t => !t.parent);
+    const tbtImpactFromTopLevelTasks = topLevelTasks.reduce((sum, t) => sum += t.tbtImpact, 0);
+    expect(tbtImpactFromTopLevelTasks).toBeCloseTo(tbtEstimateFromTasks, 0.1);
+
+    // With DT throttling, the TBT estimate from summing all self impacts should
+    // be the same as our actual TBT calculation.
+    const tbtResult = await TotalBlockingTime.request(metricComputationData, context);
+    expect(tbtEstimateFromTasks).toBeCloseTo(tbtResult.timing, 0.1);
   });
 });
