@@ -23,80 +23,82 @@ describe('TBTImpactTasks', () => {
     settings = JSON.parse(JSON.stringify(defaultSettings));
   });
 
-  it('works on real artifacts', async () => {
-    /** @type {LH.Artifacts.MetricComputationDataInput} */
-    const metricComputationData = {
-      trace,
-      devtoolsLog,
-      URL: getURLArtifactFromDevtoolsLog(devtoolsLog),
-      gatherContext: {gatherMode: 'navigation'},
-      settings,
-    };
+  describe('works on real artifacts', () => {
+    it('with lantern', async () => {
+      /** @type {LH.Artifacts.MetricComputationDataInput} */
+      const metricComputationData = {
+        trace,
+        devtoolsLog,
+        URL: getURLArtifactFromDevtoolsLog(devtoolsLog),
+        gatherContext: {gatherMode: 'navigation'},
+        settings,
+      };
 
-    const tasks = await TBTImpactTasks.request(metricComputationData, context);
+      const tasks = await TBTImpactTasks.request(metricComputationData, context);
 
-    const tasksImpactingTbt = tasks.filter(t => t.tbtImpact);
-    expect(tasksImpactingTbt.length).toMatchInlineSnapshot(`59`);
+      const tasksImpactingTbt = tasks.filter(t => t.tbtImpact);
+      expect(tasksImpactingTbt.length).toMatchInlineSnapshot(`59`);
 
-    // Only tasks with no children should have a `selfTbtImpact` that equals `tbtImpact` if
-    // `tbtImpact` is nonzero.
-    const tasksWithNoChildren = tasksImpactingTbt.filter(t => !t.children.length);
-    const tasksWithAllSelfImpact = tasksImpactingTbt.filter(t => t.selfTbtImpact === t.tbtImpact);
-    expect(tasksWithNoChildren).toEqual(tasksWithAllSelfImpact);
+      // Only tasks with no children should have a `selfTbtImpact` that equals `tbtImpact` if
+      // `tbtImpact` is nonzero.
+      const tasksWithNoChildren = tasksImpactingTbt.filter(t => !t.children.length);
+      const tasksWithAllSelfImpact = tasksImpactingTbt.filter(t => t.selfTbtImpact === t.tbtImpact);
+      expect(tasksWithNoChildren).toEqual(tasksWithAllSelfImpact);
 
-    const totalSelfImpact = tasksImpactingTbt.reduce((sum, t) => sum += t.selfTbtImpact, 0);
-    expect(totalSelfImpact).toMatchInlineSnapshot(`1234`);
+      const totalSelfImpact = tasksImpactingTbt.reduce((sum, t) => sum += t.selfTbtImpact, 0);
+      expect(totalSelfImpact).toMatchInlineSnapshot(`1234`);
 
-    // The total self TBT impact of every task should equal the total TBT impact of just the top level tasks.
-    const topLevelTasks = tasksImpactingTbt.filter(t => !t.parent);
-    const totalTopLevelImpact = topLevelTasks.reduce((sum, t) => sum += t.tbtImpact, 0);
-    expect(totalTopLevelImpact).toBeCloseTo(totalSelfImpact, 0.1);
+      // The total self TBT impact of every task should equal the total TBT impact of just the top level tasks.
+      const topLevelTasks = tasksImpactingTbt.filter(t => !t.parent);
+      const totalTopLevelImpact = topLevelTasks.reduce((sum, t) => sum += t.tbtImpact, 0);
+      expect(totalTopLevelImpact).toBeCloseTo(totalSelfImpact, 0.1);
 
-    // We use the pessimistic start/end timings to get the TBT impact of each task, so the total TBT impact
-    // should be the same as the pessimistic TBT estimate.
-    const tbtResult = await TotalBlockingTime.request(metricComputationData, context);
-    if ('pessimisticEstimate' in tbtResult) {
-      expect(totalSelfImpact).toBeGreaterThan(tbtResult.timing);
-      expect(totalSelfImpact).toBeCloseTo(tbtResult.pessimisticEstimate.timeInMs, 0.1);
-    } else {
-      throw new Error('TBT result was not a lantern result');
-    }
-  });
+      // We use the pessimistic start/end timings to get the TBT impact of each task, so the total TBT impact
+      // should be the same as the pessimistic TBT estimate.
+      const tbtResult = await TotalBlockingTime.request(metricComputationData, context);
+      if ('pessimisticEstimate' in tbtResult) {
+        expect(totalSelfImpact).toBeGreaterThan(tbtResult.timing);
+        expect(totalSelfImpact).toBeCloseTo(tbtResult.pessimisticEstimate.timeInMs, 0.1);
+      } else {
+        throw new Error('TBT result was not a lantern result');
+      }
+    });
 
-  it('works on real artifacts with DT throttling', async () => {
-    settings.throttlingMethod = 'devtools';
+    it('with DT throttling', async () => {
+      settings.throttlingMethod = 'devtools';
 
-    /** @type {LH.Artifacts.MetricComputationDataInput} */
-    const metricComputationData = {
-      trace,
-      devtoolsLog,
-      URL: getURLArtifactFromDevtoolsLog(devtoolsLog),
-      gatherContext: {gatherMode: 'navigation'},
-      settings,
-    };
+      /** @type {LH.Artifacts.MetricComputationDataInput} */
+      const metricComputationData = {
+        trace,
+        devtoolsLog,
+        URL: getURLArtifactFromDevtoolsLog(devtoolsLog),
+        gatherContext: {gatherMode: 'navigation'},
+        settings,
+      };
 
-    const tasks = await TBTImpactTasks.request(metricComputationData, context);
+      const tasks = await TBTImpactTasks.request(metricComputationData, context);
 
-    const tasksImpactingTbt = tasks.filter(t => t.tbtImpact);
-    expect(tasksImpactingTbt.length).toMatchInlineSnapshot(`5`);
+      const tasksImpactingTbt = tasks.filter(t => t.tbtImpact);
+      expect(tasksImpactingTbt.length).toMatchInlineSnapshot(`5`);
 
-    // Only tasks with no children should have a `selfTbtImpact` that equals `tbtImpact` if
-    // `tbtImpact` is nonzero.
-    const tasksWithNoChildren = tasksImpactingTbt.filter(t => !t.children.length);
-    const tasksWithAllSelfImpact = tasksImpactingTbt.filter(t => t.selfTbtImpact === t.tbtImpact);
-    expect(tasksWithNoChildren).toEqual(tasksWithAllSelfImpact);
+      // Only tasks with no children should have a `selfTbtImpact` that equals `tbtImpact` if
+      // `tbtImpact` is nonzero.
+      const tasksWithNoChildren = tasksImpactingTbt.filter(t => !t.children.length);
+      const tasksWithAllSelfImpact = tasksImpactingTbt.filter(t => t.selfTbtImpact === t.tbtImpact);
+      expect(tasksWithNoChildren).toEqual(tasksWithAllSelfImpact);
 
-    const totalSelfImpact = tasksImpactingTbt.reduce((sum, t) => sum += t.selfTbtImpact, 0);
-    expect(totalSelfImpact).toMatchInlineSnapshot(`333.0050000000001`);
+      const totalSelfImpact = tasksImpactingTbt.reduce((sum, t) => sum += t.selfTbtImpact, 0);
+      expect(totalSelfImpact).toMatchInlineSnapshot(`333.0050000000001`);
 
-    // The total self TBT impact of every task should equal the total TBT impact of just the top level tasks.
-    const topLevelTasks = tasksImpactingTbt.filter(t => !t.parent);
-    const totalTopLevelImpact = topLevelTasks.reduce((sum, t) => sum += t.tbtImpact, 0);
-    expect(totalTopLevelImpact).toBeCloseTo(totalSelfImpact, 0.1);
+      // The total self TBT impact of every task should equal the total TBT impact of just the top level tasks.
+      const topLevelTasks = tasksImpactingTbt.filter(t => !t.parent);
+      const totalTopLevelImpact = topLevelTasks.reduce((sum, t) => sum += t.tbtImpact, 0);
+      expect(totalTopLevelImpact).toBeCloseTo(totalSelfImpact, 0.1);
 
-    // With DT throttling, the TBT estimate from summing all self impacts should
-    // be the same as our actual TBT calculation.
-    const tbtResult = await TotalBlockingTime.request(metricComputationData, context);
-    expect(totalSelfImpact).toBeCloseTo(tbtResult.timing, 0.1);
+      // With DT throttling, the TBT estimate from summing all self impacts should
+      // be the same as our actual TBT calculation.
+      const tbtResult = await TotalBlockingTime.request(metricComputationData, context);
+      expect(totalSelfImpact).toBeCloseTo(tbtResult.timing, 0.1);
+    });
   });
 });
