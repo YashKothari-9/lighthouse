@@ -89,6 +89,108 @@ class TBTImpactTasks {
   }
 
   /**
+   * @param {LH.Artifacts.TaskNode[]} tasks
+   * @param {number} startTimeMs
+   * @param {number} endTimeMs
+   * @return {Map<LH.Artifacts.TaskNode, number>}
+   */
+  static computeImpactsFromObservedTasks(tasks, startTimeMs, endTimeMs) {
+    /** @type {Map<LH.Artifacts.TaskNode, number>} */
+    const taskToImpact = new Map();
+
+    for (const task of tasks) {
+      const event = {
+        start: task.startTime,
+        end: task.endTime,
+        duration: task.duration,
+      };
+
+      const topLevelTask = this.getTopLevelTask(task);
+      const topLevelEvent = {
+        start: topLevelTask.startTime,
+        end: topLevelTask.endTime,
+        duration: topLevelTask.duration,
+      };
+
+      const tbtImpact = calculateTbtImpactForEvent(event, startTimeMs, endTimeMs, topLevelEvent);
+
+      taskToImpact.set(task, tbtImpact);
+    }
+
+    return taskToImpact;
+  }
+
+  /**
+   * @param {LH.Artifacts.TaskNode[]} tasks
+   * @param {LH.Artifacts.LanternMetric} tbtResult
+   * @param {number} startTimeMs
+   * @param {number} endTimeMs
+   * @return {Map<LH.Artifacts.TaskNode, number>}
+   */
+  static computeImpactsFromLantern(tasks, tbtResult, startTimeMs, endTimeMs) {
+    /** @type {Map<LH.Artifacts.TaskNode, number>} */
+    const taskToImpact = new Map();
+
+    /** @type {Map<LH.Artifacts.TaskNode, {start: number, end: number, duration: number}>} */
+    const topLevelTaskToEvent = new Map();
+
+    /** @type {Map<LH.TraceEvent, LH.Artifacts.TaskNode>} */
+    const traceEventToTask = new Map();
+    for (const task of tasks) {
+      traceEventToTask.set(task.event, task);
+    }
+
+    // Use lantern TBT timings to calculate the TBT impact of top level tasks.
+    for (const [node, timing] of tbtResult.pessimisticEstimate.nodeTimings) {
+      if (node.type !== 'cpu') continue;
+
+      const event = {
+        start: timing.startTime,
+        end: timing.endTime,
+        duration: timing.duration,
+      };
+
+      const tbtImpact = calculateTbtImpactForEvent(event, startTimeMs, endTimeMs);
+
+      const task = traceEventToTask.get(node.event);
+      if (!task) continue;
+
+      topLevelTaskToEvent.set(task, event);
+      taskToImpact.set(task, tbtImpact);
+    }
+
+    // Interpolate the TBT impact of remaining tasks using the top level ancestor tasks.
+    // We don't have any lantern estimates for tasks that are not top level, so we need to estimate
+    // the lantern timing based on the task's observed timing relative to it's top level task's observed timing.
+    for (const task of tasks) {
+      if (taskToImpact.has(task)) continue;
+
+      const topLevelTask = this.getTopLevelTask(task);
+
+      const topLevelEvent = topLevelTaskToEvent.get(topLevelTask);
+      if (!topLevelEvent) continue;
+
+      const startRatio = (task.startTime - topLevelTask.startTime) / topLevelTask.duration;
+      const start = startRatio * topLevelEvent.duration + topLevelEvent.start;
+
+      const endRatio = (topLevelTask.endTime - task.endTime) / topLevelTask.duration;
+      const end = topLevelEvent.end - endRatio * topLevelEvent.duration;
+
+      const event = {
+        start,
+        end,
+        duration: end - start,
+      };
+
+      const tbtImpact = calculateTbtImpactForEvent(event, startTimeMs, endTimeMs, topLevelEvent);
+
+      taskToImpact.set(task, tbtImpact);
+    }
+
+    return taskToImpact;
+  }
+
+  /**
    * @param {LH.Artifacts.MetricComputationDataInput} metricComputationData
    * @param {LH.Artifacts.ComputedContext} context
    * @return {Promise<TBTImpactTask[]>}
@@ -97,87 +199,11 @@ class TBTImpactTasks {
     const tbtResult = await TotalBlockingTime.request(metricComputationData, context);
     const tasks = await MainThreadTasks.request(metricComputationData.trace, context);
 
-    /** @type {Map<LH.Artifacts.TaskNode, number>} */
-    const taskToImpact = new Map();
-
     const {startTimeMs, endTimeMs} = await this.getTBTBounds(metricComputationData, context);
 
-    if ('pessimisticEstimate' in tbtResult) {
-      /** @type {Map<LH.Artifacts.TaskNode, {start: number, end: number, duration: number}>} */
-      const topLevelTaskToEvent = new Map();
-
-      /** @type {Map<LH.TraceEvent, LH.Artifacts.TaskNode>} */
-      const traceEventToTask = new Map();
-      for (const task of tasks) {
-        traceEventToTask.set(task.event, task);
-      }
-
-      // Use lantern TBT timings to calculate the TBT impact of top level tasks.
-      for (const [node, timing] of tbtResult.pessimisticEstimate.nodeTimings) {
-        if (node.type !== 'cpu') continue;
-
-        const event = {
-          start: timing.startTime,
-          end: timing.endTime,
-          duration: timing.duration,
-        };
-
-        const tbtImpact = calculateTbtImpactForEvent(event, startTimeMs, endTimeMs);
-
-        const task = traceEventToTask.get(node.event);
-        if (!task) continue;
-
-        topLevelTaskToEvent.set(task, event);
-        taskToImpact.set(task, tbtImpact);
-      }
-
-      // Interpolate the TBT impact of remaining tasks using the top level ancestor tasks.
-      // We don't have any lantern estimates for tasks that are not top level, so we need to estimate
-      // the lantern timing based on the task's observed timing relative to it's top level task's observed timing.
-      for (const task of tasks) {
-        if (taskToImpact.has(task)) continue;
-
-        const topLevelTask = this.getTopLevelTask(task);
-
-        const topLevelEvent = topLevelTaskToEvent.get(topLevelTask);
-        if (!topLevelEvent) continue;
-
-        const startRatio = (task.startTime - topLevelTask.startTime) / topLevelTask.duration;
-        const start = startRatio * topLevelEvent.duration + topLevelEvent.start;
-
-        const endRatio = (topLevelTask.endTime - task.endTime) / topLevelTask.duration;
-        const end = topLevelEvent.end - endRatio * topLevelEvent.duration;
-
-        const event = {
-          start,
-          end,
-          duration: end - start,
-        };
-
-        const tbtImpact = calculateTbtImpactForEvent(event, startTimeMs, endTimeMs, topLevelEvent);
-
-        taskToImpact.set(task, tbtImpact);
-      }
-    } else {
-      for (const task of tasks) {
-        const event = {
-          start: task.startTime,
-          end: task.endTime,
-          duration: task.duration,
-        };
-
-        const topLevelTask = this.getTopLevelTask(task);
-        const topLevelEvent = {
-          start: topLevelTask.startTime,
-          end: topLevelTask.endTime,
-          duration: topLevelTask.duration,
-        };
-
-        const tbtImpact = calculateTbtImpactForEvent(event, startTimeMs, endTimeMs, topLevelEvent);
-
-        taskToImpact.set(task, tbtImpact);
-      }
-    }
+    const taskToImpact = 'pessimisticEstimate' in tbtResult ?
+      this.computeImpactsFromLantern(tasks, tbtResult, startTimeMs, endTimeMs) :
+      this.computeImpactsFromObservedTasks(tasks, startTimeMs, endTimeMs);
 
     return this.createImpactTasks(tasks, taskToImpact);
   }
