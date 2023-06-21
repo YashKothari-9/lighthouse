@@ -122,12 +122,12 @@ class TBTImpactTasks {
 
   /**
    * @param {LH.Artifacts.TaskNode[]} tasks
-   * @param {LH.Artifacts.LanternMetric} tbtResult
+   * @param {LH.Gatherer.Simulation.Result['nodeTimings']} tbtNodeTimings
    * @param {number} startTimeMs
    * @param {number} endTimeMs
    * @return {Map<LH.Artifacts.TaskNode, number>}
    */
-  static computeImpactsFromLantern(tasks, tbtResult, startTimeMs, endTimeMs) {
+  static computeImpactsFromLantern(tasks, tbtNodeTimings, startTimeMs, endTimeMs) {
     /** @type {Map<LH.Artifacts.TaskNode, number>} */
     const taskToImpact = new Map();
 
@@ -141,7 +141,7 @@ class TBTImpactTasks {
     }
 
     // Use lantern TBT timings to calculate the TBT impact of top level tasks.
-    for (const [node, timing] of tbtResult.pessimisticEstimate.nodeTimings) {
+    for (const [node, timing] of tbtNodeTimings) {
       if (node.type !== 'cpu') continue;
 
       const event = {
@@ -202,7 +202,7 @@ class TBTImpactTasks {
     const {startTimeMs, endTimeMs} = await this.getTbtBounds(metricComputationData, context);
 
     const taskToImpact = 'pessimisticEstimate' in tbtResult ?
-      this.computeImpactsFromLantern(tasks, tbtResult, startTimeMs, endTimeMs) :
+      this.computeImpactsFromLantern(tasks, tbtResult.pessimisticEstimate.nodeTimings, startTimeMs, endTimeMs) :
       this.computeImpactsFromObservedTasks(tasks, startTimeMs, endTimeMs);
 
     return this.createImpactTasks(tasks, taskToImpact);
