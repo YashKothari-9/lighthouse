@@ -68,6 +68,7 @@ class TBTImpactTasks {
   static createImpactTasks(tasks, taskToImpact) {
     /** @type {TBTImpactTask[]} */
     const tbtImpactTasks = [];
+
     for (const task of tasks) {
       const tbtImpact = taskToImpact.get(task) || 0;
       let selfTbtImpact = tbtImpact;
@@ -83,6 +84,7 @@ class TBTImpactTasks {
         selfTbtImpact,
       });
     }
+
     return tbtImpactTasks;
   }
 
