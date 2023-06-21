@@ -201,13 +201,24 @@ class TBTImpactTasks {
 
     const {startTimeMs, endTimeMs} = await this.getTbtBounds(metricComputationData, context);
 
-    const taskToImpact = 'pessimisticEstimate' in tbtResult ?
-      this.computeImpactsFromLantern(tasks, tbtResult.pessimisticEstimate.nodeTimings, startTimeMs, endTimeMs) :
-      this.computeImpactsFromObservedTasks(tasks, startTimeMs, endTimeMs);
+    let taskToImpact;
+    if ('pessimisticEstimate' in tbtResult) {
+      taskToImpact = this.computeImpactsFromLantern(
+        tasks,
+        tbtResult.pessimisticEstimate.nodeTimings,
+        startTimeMs,
+        endTimeMs
+      );
+    } else {
+      taskToImpact = this.computeImpactsFromObservedTasks(tasks, startTimeMs, endTimeMs);
+    }
 
     return this.createImpactTasks(tasks, taskToImpact);
   }
 }
 
-const TBTImpactTasksComputed = makeComputedArtifact(TBTImpactTasks, ['trace', 'devtoolsLog', 'URL', 'gatherContext', 'settings', 'simulator']);
+const TBTImpactTasksComputed = makeComputedArtifact(
+  TBTImpactTasks,
+  ['trace', 'devtoolsLog', 'URL', 'gatherContext', 'settings', 'simulator']
+);
 export {TBTImpactTasksComputed as TBTImpactTasks};
