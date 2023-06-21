@@ -67,6 +67,7 @@ function getChildTask({ts, duration, url}) {
  * generation, e.g a trace that will result in particular long-task quiet
  * periods. Input times should be in milliseconds.
  * @param {TraceOptions} options
+ * @return {{traceEvents: LH.TraceEvent[]}}
  */
 function createTestTrace(options) {
   const frameUrl = options.frameUrl ?? defaultUrl;

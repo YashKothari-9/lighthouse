@@ -32,7 +32,7 @@ class TBTImpactTasks {
    * @param {LH.Artifacts.ComputedContext} context
    * @return {Promise<{startTimeMs: number, endTimeMs: number}>}
    */
-  static async getTBTBounds(metricComputationData, context) {
+  static async getTbtBounds(metricComputationData, context) {
     const processedTrace = await ProcessedTrace.request(metricComputationData.trace, context);
     if (metricComputationData.gatherContext.gatherMode !== 'navigation') {
       return {
@@ -199,7 +199,7 @@ class TBTImpactTasks {
     const tbtResult = await TotalBlockingTime.request(metricComputationData, context);
     const tasks = await MainThreadTasks.request(metricComputationData.trace, context);
 
-    const {startTimeMs, endTimeMs} = await this.getTBTBounds(metricComputationData, context);
+    const {startTimeMs, endTimeMs} = await this.getTbtBounds(metricComputationData, context);
 
     const taskToImpact = 'pessimisticEstimate' in tbtResult ?
       this.computeImpactsFromLantern(tasks, tbtResult, startTimeMs, endTimeMs) :
