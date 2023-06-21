@@ -35,20 +35,20 @@ describe('TBTImpactTasks', () => {
 
     const tasks = await TBTImpactTasks.request(metricComputationData, context);
 
-    const tbtImpactingTasks = tasks.filter(t => t.tbtImpact);
-    expect(tbtImpactingTasks.length).toMatchInlineSnapshot(`59`);
+    const tasksImpactingTbt = tasks.filter(t => t.tbtImpact);
+    expect(tasksImpactingTbt.length).toMatchInlineSnapshot(`59`);
 
     // Only tasks with no children should have a `selfTbtImpact` that equals `tbtImpact` if
     // `tbtImpact` is nonzero.
-    const noChildTasks = tbtImpactingTasks.filter(t => !t.children.length);
-    const allSelfImpactTasks = tbtImpactingTasks.filter(t => t.selfTbtImpact === t.tbtImpact);
-    expect(noChildTasks).toEqual(allSelfImpactTasks);
+    const tasksWithNoChildren = tasksImpactingTbt.filter(t => !t.children.length);
+    const tasksWithAllSelfImpact = tasksImpactingTbt.filter(t => t.selfTbtImpact === t.tbtImpact);
+    expect(tasksWithNoChildren).toEqual(tasksWithAllSelfImpact);
 
-    const tbtEstimateFromTasks = tbtImpactingTasks.reduce((sum, t) => sum += t.selfTbtImpact, 0);
+    const tbtEstimateFromTasks = tasksImpactingTbt.reduce((sum, t) => sum += t.selfTbtImpact, 0);
     expect(tbtEstimateFromTasks).toMatchInlineSnapshot(`1234`);
 
     // The total self TBT impact of every task should equal the total TBT impact of just the top level tasks.
-    const topLevelTasks = tbtImpactingTasks.filter(t => !t.parent);
+    const topLevelTasks = tasksImpactingTbt.filter(t => !t.parent);
     const tbtImpactFromTopLevelTasks = topLevelTasks.reduce((sum, t) => sum += t.tbtImpact, 0);
     expect(tbtImpactFromTopLevelTasks).toBeCloseTo(tbtEstimateFromTasks, 0.1);
 
@@ -77,20 +77,20 @@ describe('TBTImpactTasks', () => {
 
     const tasks = await TBTImpactTasks.request(metricComputationData, context);
 
-    const tbtImpactingTasks = tasks.filter(t => t.tbtImpact);
-    expect(tbtImpactingTasks.length).toMatchInlineSnapshot(`5`);
+    const tasksImpactingTbt = tasks.filter(t => t.tbtImpact);
+    expect(tasksImpactingTbt.length).toMatchInlineSnapshot(`5`);
 
     // Only tasks with no children should have a `selfTbtImpact` that equals `tbtImpact` if
     // `tbtImpact` is nonzero.
-    const noChildTasks = tbtImpactingTasks.filter(t => !t.children.length);
-    const allSelfImpactTasks = tbtImpactingTasks.filter(t => t.selfTbtImpact === t.tbtImpact);
-    expect(noChildTasks).toEqual(allSelfImpactTasks);
+    const tasksWithNoChildren = tasksImpactingTbt.filter(t => !t.children.length);
+    const tasksWithAllSelfImpact = tasksImpactingTbt.filter(t => t.selfTbtImpact === t.tbtImpact);
+    expect(tasksWithNoChildren).toEqual(tasksWithAllSelfImpact);
 
-    const tbtEstimateFromTasks = tbtImpactingTasks.reduce((sum, t) => sum += t.selfTbtImpact, 0);
+    const tbtEstimateFromTasks = tasksImpactingTbt.reduce((sum, t) => sum += t.selfTbtImpact, 0);
     expect(tbtEstimateFromTasks).toMatchInlineSnapshot(`333.0050000000001`);
 
     // The total self TBT impact of every task should equal the total TBT impact of just the top level tasks.
-    const topLevelTasks = tbtImpactingTasks.filter(t => !t.parent);
+    const topLevelTasks = tasksImpactingTbt.filter(t => !t.parent);
     const tbtImpactFromTopLevelTasks = topLevelTasks.reduce((sum, t) => sum += t.tbtImpact, 0);
     expect(tbtImpactFromTopLevelTasks).toBeCloseTo(tbtEstimateFromTasks, 0.1);
 
