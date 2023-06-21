@@ -10,9 +10,11 @@ import {defaultSettings} from '../../config/constants.js';
 import {getURLArtifactFromDevtoolsLog, readJson} from '../test-utils.js';
 import {createTestTrace, rootFrame} from '../create-test-trace.js';
 import {networkRecordsToDevtoolsLog} from '../network-records-to-devtools-log.js';
+import {MainThreadTasks} from '../../computed/main-thread-tasks.js';
 
 const trace = readJson('../fixtures/traces/lcp-m78.json', import.meta);
 const devtoolsLog = readJson('../fixtures/traces/lcp-m78.devtools.log.json', import.meta);
+const mainDocumentUrl = 'https://example.com';
 
 describe('TBTImpactTasks', () => {
   /** @type {LH.Config.Settings} */
@@ -26,7 +28,6 @@ describe('TBTImpactTasks', () => {
     context = {computedCache: new Map()};
     settings = JSON.parse(JSON.stringify(defaultSettings));
 
-    const mainDocumentUrl = 'https://example.com';
     metricComputationData = {
       trace: createTestTrace({
         traceEnd: 10_000,
@@ -80,6 +81,56 @@ describe('TBTImpactTasks', () => {
         await TBTImpactTasks.getTbtBounds(metricComputationData, context);
       expect(startTimeMs).toEqual(0);
       expect(endTimeMs).toEqual(10_000);
+    });
+  });
+
+  describe('computeImpactsFromObservedTasks', () => {
+    it('computes correct task impacts', async () => {
+      const trace = createTestTrace({
+        traceEnd: 10_000,
+        topLevelTasks: [
+          {
+            ts: 2000,
+            duration: 4000,
+            children: [
+              {ts: 2100, duration: 500, url: mainDocumentUrl},
+              {ts: 3100, duration: 500, url: mainDocumentUrl},
+            ],
+          },
+          {
+            ts: 6000,
+            duration: 3000,
+          },
+        ],
+      });
+
+      const tasks = await MainThreadTasks.request(trace, context);
+      expect(tasks).toHaveLength(5);
+
+      const tbtImpactTasks = TBTImpactTasks.computeImpactsFromObservedTasks(tasks, 2200, 7000);
+      expect(tbtImpactTasks).toMatchObject([
+        {
+          tbtImpact: 3750, // 4000 (dur) - 200 (FCP cutoff) - 50 (blocking threshold)
+          selfTbtImpact: 2862.5, // 3750 - 393.75 - 493.75
+        },
+        {
+          tbtImpact: 393.75, // 500 (dur) - 100 (FCP cutoff) - 6.25 (50 * 500 / 4000)
+          selfTbtImpact: 393.75, // No children
+        },
+        {
+          tbtImpact: 493.75, // 500 (dur) - 6.25 (50 * 500 / 4000)
+          selfTbtImpact: 493.75, // No children
+        },
+        {
+          tbtImpact: 950, // 3000 (dur) - 2000 (TTI cutoff) - 50
+          selfTbtImpact: 950, // No children
+        },
+        {
+          // Included in test trace by default
+          tbtImpact: 0,
+          selfTbtImpact: 0,
+        },
+      ]);
     });
   });
 

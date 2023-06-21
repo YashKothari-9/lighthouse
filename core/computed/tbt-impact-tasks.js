@@ -92,7 +92,7 @@ class TBTImpactTasks {
    * @param {LH.Artifacts.TaskNode[]} tasks
    * @param {number} startTimeMs
    * @param {number} endTimeMs
-   * @return {Map<LH.Artifacts.TaskNode, number>}
+   * @return {TBTImpactTask[]}
    */
   static computeImpactsFromObservedTasks(tasks, startTimeMs, endTimeMs) {
     /** @type {Map<LH.Artifacts.TaskNode, number>} */
@@ -117,7 +117,7 @@ class TBTImpactTasks {
       taskToImpact.set(task, tbtImpact);
     }
 
-    return taskToImpact;
+    return this.createImpactTasks(tasks, taskToImpact);
   }
 
   /**
@@ -125,7 +125,7 @@ class TBTImpactTasks {
    * @param {LH.Gatherer.Simulation.Result['nodeTimings']} tbtNodeTimings
    * @param {number} startTimeMs
    * @param {number} endTimeMs
-   * @return {Map<LH.Artifacts.TaskNode, number>}
+   * @return {TBTImpactTask[]}
    */
   static computeImpactsFromLantern(tasks, tbtNodeTimings, startTimeMs, endTimeMs) {
     /** @type {Map<LH.Artifacts.TaskNode, number>} */
@@ -187,7 +187,7 @@ class TBTImpactTasks {
       taskToImpact.set(task, tbtImpact);
     }
 
-    return taskToImpact;
+    return this.createImpactTasks(tasks, taskToImpact);
   }
 
   /**
@@ -201,19 +201,16 @@ class TBTImpactTasks {
 
     const {startTimeMs, endTimeMs} = await this.getTbtBounds(metricComputationData, context);
 
-    let taskToImpact;
     if ('pessimisticEstimate' in tbtResult) {
-      taskToImpact = this.computeImpactsFromLantern(
+      return this.computeImpactsFromLantern(
         tasks,
         tbtResult.pessimisticEstimate.nodeTimings,
         startTimeMs,
         endTimeMs
       );
-    } else {
-      taskToImpact = this.computeImpactsFromObservedTasks(tasks, startTimeMs, endTimeMs);
     }
 
-    return this.createImpactTasks(tasks, taskToImpact);
+    return this.computeImpactsFromObservedTasks(tasks, startTimeMs, endTimeMs);
   }
 }
 
