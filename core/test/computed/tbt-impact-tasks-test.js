@@ -41,8 +41,8 @@ describe('TBTImpactTasks', () => {
     // Only tasks with no children should have a `selfTbtImpact` that equals `tbtImpact` if
     // `tbtImpact` is nonzero.
     const noChildTasks = tbtImpactingTasks.filter(t => !t.children.length);
-    const noChildImpactTasks = tbtImpactingTasks.filter(t => t.selfTbtImpact === t.tbtImpact);
-    expect(noChildTasks).toEqual(noChildImpactTasks);
+    const allSelfImpactTasks = tbtImpactingTasks.filter(t => t.selfTbtImpact === t.tbtImpact);
+    expect(noChildTasks).toEqual(allSelfImpactTasks);
 
     const tbtEstimateFromTasks = tbtImpactingTasks.reduce((sum, t) => sum += t.selfTbtImpact, 0);
     expect(tbtEstimateFromTasks).toMatchInlineSnapshot(`1234`);
@@ -83,8 +83,8 @@ describe('TBTImpactTasks', () => {
     // Only tasks with no children should have a `selfTbtImpact` that equals `tbtImpact` if
     // `tbtImpact` is nonzero.
     const noChildTasks = tbtImpactingTasks.filter(t => !t.children.length);
-    const noChildImpactTasks = tbtImpactingTasks.filter(t => t.selfTbtImpact === t.tbtImpact);
-    expect(noChildTasks).toEqual(noChildImpactTasks);
+    const allSelfImpactTasks = tbtImpactingTasks.filter(t => t.selfTbtImpact === t.tbtImpact);
+    expect(noChildTasks).toEqual(allSelfImpactTasks);
 
     const tbtEstimateFromTasks = tbtImpactingTasks.reduce((sum, t) => sum += t.selfTbtImpact, 0);
     expect(tbtEstimateFromTasks).toMatchInlineSnapshot(`333.0050000000001`);
