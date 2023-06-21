@@ -102,7 +102,7 @@ class TBTImpactTasks {
 
     if ('pessimisticEstimate' in tbtResult) {
       /** @type {Map<LH.Artifacts.TaskNode, {start: number, end: number, duration: number}>} */
-      const taskToEvent = new Map();
+      const topLevelTaskToEvent = new Map();
 
       /** @type {Map<LH.TraceEvent, LH.Artifacts.TaskNode>} */
       const traceEventToTask = new Map();
@@ -125,8 +125,8 @@ class TBTImpactTasks {
         const task = traceEventToTask.get(node.event);
         if (!task) continue;
 
+        topLevelTaskToEvent.set(task, event);
         taskToImpact.set(task, tbtImpact);
-        taskToEvent.set(task, event);
       }
 
       // Interpolate the TBT impact of remaining tasks using the top level ancestor tasks.
@@ -137,7 +137,7 @@ class TBTImpactTasks {
 
         const topLevelTask = this.getTopLevelTask(task);
 
-        const topLevelEvent = taskToEvent.get(topLevelTask);
+        const topLevelEvent = topLevelTaskToEvent.get(topLevelTask);
         if (!topLevelEvent) continue;
 
         const startRatio = (task.startTime - topLevelTask.startTime) / topLevelTask.duration;
@@ -155,7 +155,6 @@ class TBTImpactTasks {
         const tbtImpact = calculateTbtImpactForEvent(event, startTimeMs, endTimeMs, topLevelEvent);
 
         taskToImpact.set(task, tbtImpact);
-        taskToEvent.set(task, event);
       }
     } else {
       for (const task of tasks) {
